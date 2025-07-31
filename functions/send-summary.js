@@ -3,7 +3,7 @@ const axios = require('axios');
 
 exports.handler = async function(event, context) {
     try {
-        // Baca data submissions
+        // Baca data sementara
         const submissionsFile = '/tmp/submissions.json';
         let submissions = [];
         try {
@@ -28,8 +28,7 @@ exports.handler = async function(event, context) {
             emailBody += `Hasil Grok: ${submission.grok_result}\n\n`;
         });
 
-        // Kirim email menggunakan layanan seperti SendGrid
-        // Ganti dengan API key SendGrid atau layanan email lain
+        // Kirim email menggunakan SendGrid
         await axios.post('https://api.sendgrid.com/v3/mail/send', {
             personalizations: [{ to: [{ email: 'rickpipor@gmail.com' }] }],
             from: { email: 'no-reply@yourdomain.com' },
