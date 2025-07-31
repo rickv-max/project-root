@@ -3,43 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pendaftaran Pemilihan 2029</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Form Pendaftaran Pemilihan 2029</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>Form Pendaftaran Pemilihan 2029</h1>
-        <form id="registrationForm">
-            <div class="form-group">
-                <label for="school">Nama Sekolah:</label>
-                <input type="text" id="school" name="school" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="father">Nama Ayah:</label>
-                <input type="text" id="father" name="father" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="mother">Nama Ibu:</label>
-                <input type="text" id="mother" name="mother" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="domicile">Domisili:</label>
-                <input type="text" id="domicile" name="domicile" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="family-card">Upload Kartu Keluarga:</label>
-                <input type="file" id="family-card" name="family-card" accept="image/*" required>
-                <div id="file-preview"></div>
-            </div>
-            
-            <button type="submit" class="submit-btn">Kirim Pendaftaran</button>
+        <h2>Form Pendaftaran Pemilihan 2029</h2>
+        <form action="https://formsubmit.co/rickpipor@gmail.com" method="POST" enctype="multipart/form-data" id="pendaftaranForm">
+            <label for="nama_sekolah">Nama Sekolah:</label>
+            <input type="text" id="nama_sekolah" name="nama_sekolah" required>
+
+            <label for="nama_ayah">Nama Ayah:</label>
+            <input type="text" id="nama_ayah" name="nama_ayah" required>
+
+            <label for="nama_ibu">Nama Ibu:</label>
+            <input type="text" id="nama_ibu" name="nama_ibu" required>
+
+            <label for="domisili">Domisili:</label>
+            <input type="text" id="domisili" name="domisili" required>
+
+            <label for="kartu_keluarga">Upload Kartu Keluarga (PDF/JPG/PNG):</label>
+            <input type="file" id="kartu_keluarga" name="kartu_keluarga" accept=".pdf,.jpg,.png" required>
+
+            <input type="hidden" name="_subject" value="Pendaftaran Pemilihan 2029">
+            <input type="hidden" name="_next" value="/thank-you.html">
+            <input type="hidden" name="_captcha" value="false">
+
+            <button type="submit">Kirim</button>
         </form>
+        <p id="status" style="display: none;"></p>
     </div>
-    
     <script src="script.js"></script>
 </body>
 </html>
