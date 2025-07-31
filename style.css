@@ -26,3 +26,19 @@ pre {
   overflow-x: auto;
   white-space: pre-wrap;
 }
+.year-selector {
+  margin: 1rem 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+.year-selector label {
+  font-weight: bold;
+}
+.year-selector input {
+  padding: 5px;
+  width: 80px;
+  text-align: center;
+  font-size: 1rem;
+}
