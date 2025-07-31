@@ -6,9 +6,8 @@ export default async (req) => {
   }
 
   try {
-    // Terima `targetYear` dari frontend
     const { base64Image, targetYear } = await req.json();
-    const TAHUN_TARGET = targetYear || new Date().getFullYear(); // Fallback ke tahun ini
+    const TAHUN_TARGET = targetYear || new Date().getFullYear();
 
     if (!base64Image) {
       return new Response(JSON.stringify({ error: 'Tidak ada data gambar yang dikirim.' }), {
@@ -23,43 +22,34 @@ export default async (req) => {
       });
     }
 
-    // ================== PROMPT PALING CANGGIH (CHAIN OF THOUGHT) ==================
+    // ================== PROMPT BARU: HANYA EKSTRAKSI DATA MENTAH ==================
     let prompt = `
-      Anda adalah analis data kependudukan yang sangat teliti dan anti-kesalahan.
-      Tugas Anda adalah menganalisis gambar Kartu Keluarga (KK) dan mengisi struktur JSON. Ikuti langkah-langkah ini secara berurutan dan jangan melompat.
-      Tahun target untuk perhitungan adalah: ${TAHUN_TARGET}.
+      Anda adalah mesin OCR (Optical Character Recognition) yang sangat akurat.
+      Tugas Anda HANYA SATU: Baca gambar Kartu Keluarga (KK) dan ekstrak data setiap anggota keluarga ke dalam sebuah array JSON.
 
-      ATURAN KELAYAKAN MUTLAK:
-      Seseorang LAYAK memilih jika: (Usia di TAHUN_TARGET >= 17) ATAU (Status Perkawinan adalah "KAWIN").
+      PERATURAN EKSTRAKSI:
+      1.  Untuk setiap orang di KK, ekstrak: Nama Lengkap, Tanggal Lahir, dan Status Perkawinan.
+      2.  Hitung usia setiap orang pada tahun ${TAHUN_TARGET}. Rumus: ${TAHUN_TARGET} - Tahun Lahir.
+      3.  Letakkan semua orang ke dalam SATU array JSON bernama "anggota_keluarga".
+      4.  JANGAN melakukan klasifikasi atau pemilahan. Hanya ekstrak data.
 
-      PROSES ANALISIS UNTUK SETIAP ORANG:
-      1.  **Ekstraksi Data**: Baca NAMA, TANGGAL LAHIR, dan STATUS PERKAWINAN dari gambar.
-      2.  **Perhitungan Usia**: Hitung usia orang tersebut pada TAHUN_TARGET. Rumus: ${TAHUN_TARGET} - Tahun Lahir.
-      3.  **Analisis & Keputusan**: Bandingkan hasil dengan ATURAN KELAYAKAN MUTLAK.
-      4.  **Pengisian JSON**: Masukkan orang tersebut ke grup "pemilih_sah" atau "tidak_memenuhi_syarat" LENGKAP dengan alasannya.
-
-      FORMAT JSON OUTPUT WAJIB (JANGAN TAMBAHKAN TEKS LAIN):
+      FORMAT JSON OUTPUT WAJIB (HANYA JSON, TANPA TEKS LAIN):
       {
-        "pemilih_sah": [
+        "anggota_keluarga": [
           {
-            "nama": "NAMA LENGKAP",
-            "alasan": "Pada tahun ${TAHUN_TARGET} akan berusia 49 tahun"
+            "nama": "NAMA LENGKAP ORANG 1",
+            "usia_pada_tahun_target": 53,
+            "status_perkawinan": "KAWIN"
           },
           {
-            "nama": "NAMA LAIN",
-            "alasan": "Status Kawin"
-          }
-        ],
-        "tidak_memenuhi_syarat": [
-          {
-            "nama": "NAMA ANAK",
-            "alasan": "Pada tahun ${TAHUN_TARGET} baru berusia 15 tahun"
+            "nama": "NAMA LENGKAP ORANG 2",
+            "usia_pada_tahun_target": 15,
+            "status_perkawinan": "BELUM KAWIN"
           }
         ]
       }
 
-      Jika gambar sama sekali tidak bisa dibaca, kembalikan JSON ini:
-      { "error": "Gambar tidak terbaca, kualitas terlalu rendah." }
+      Jika gambar tidak terbaca, kembalikan JSON: { "error": "Gambar tidak terbaca, kualitas terlalu rendah." }
     `;
     // ======================================================================
 
@@ -68,7 +58,7 @@ export default async (req) => {
       generationConfig: { responseMimeType: "application/json" }
     };
 
-    const model = 'gemini-1.5-flash-latest'; // Gunakan flash untuk kecepatan dan kuota
+    const model = 'gemini-1.5-flash-latest';
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     
     const response = await fetch(geminiUrl, {
@@ -81,7 +71,7 @@ export default async (req) => {
     
     if (result.candidates && result.candidates.length > 0 && result.candidates[0].content) {
       const textResult = result.candidates[0].content.parts[0].text;
-      console.log("RESPONS MENTAH DARI GEMINI:", textResult);
+      console.log("RESPONS DATA MENTAH DARI GEMINI:", textResult);
       return new Response(textResult, { status: 200, headers: { 'Content-Type': 'application/json' } });
     } else {
       console.error("RESPONS ERROR DARI GEMINI:", JSON.stringify(result));
