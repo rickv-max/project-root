@@ -13,7 +13,6 @@ exports.handler = async function(event, context) {
     try {
         // Parse multipart/form-data
         const data = {};
-        let fileContent = '';
         let fileName = '';
 
         await new Promise((resolve, reject) => {
@@ -26,7 +25,6 @@ exports.handler = async function(event, context) {
                 const chunks = [];
                 file.on('data', chunk => chunks.push(chunk));
                 file.on('end', () => {
-                    fileContent = Buffer.concat(chunks).toString('base64');
                     data[name] = fileName;
                 });
             });
@@ -55,7 +53,6 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Panggilan ke Grok API
         let grokResult = 'Analisis belum dilakukan';
         try {
             const grokResponse = await axios.post(
@@ -78,7 +75,6 @@ exports.handler = async function(event, context) {
             );
             grokResult = grokResponse.data.choices[0].message.content;
         } catch (apiError) {
-            console.error('Grok API error:', apiError.message);
             return {
                 statusCode: 500,
                 body: JSON.stringify({ error: `Grok API gagal: ${apiError.message}` })
@@ -91,9 +87,7 @@ exports.handler = async function(event, context) {
         try {
             const existingData = await fs.readFile(submissionsFile, 'utf8');
             submissions = JSON.parse(existingData);
-        } catch (e) {
-            // File belum ada
-        }
+        } catch (e) {}
         submissions.push({
             ...data,
             grok_result: grokResult
@@ -105,7 +99,6 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ message: 'Data processed, proceed to FormSubmit' })
         };
     } catch (error) {
-        console.error('Error in submit.js:', error);
         return {
             statusCode: 500,
             body: JSON.stringify({ error: `Server error: ${error.message}` })
