@@ -1,42 +1,61 @@
-const formidable = require('formidable');
+const Busboy = require('busboy');
 const axios = require('axios');
 const fs = require('fs').promises;
 
 exports.handler = async function(event, context) {
-    // Inisialisasi formidable untuk parse multipart/form-data
-    const form = new formidable.IncomingForm();
+    if (!event.headers['content-type'] || !event.headers['content-type'].includes('multipart/form-data')) {
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Content-Type harus multipart/form-data' })
+        };
+    }
 
     try {
-        // Parse form data
-        const { fields, files } = await new Promise((resolve, reject) => {
-            form.parse(event, (err, fields, files) => {
-                if (err) reject(err);
-                resolve({ fields, files });
+        // Parse multipart/form-data
+        const data = {};
+        let fileContent = '';
+        let fileName = '';
+
+        await new Promise((resolve, reject) => {
+            const busboy = Busboy({ headers: event.headers });
+            busboy.on('field', (name, value) => {
+                data[name] = value;
             });
+            busboy.on('file', (name, file, info) => {
+                fileName = info.filename;
+                const chunks = [];
+                file.on('data', chunk => chunks.push(chunk));
+                file.on('end', () => {
+                    fileContent = Buffer.concat(chunks).toString('base64');
+                    data[name] = fileName;
+                });
+            });
+            busboy.on('finish', () => resolve());
+            busboy.on('error', err => reject(err));
+            busboy.write(Buffer.from(event.body, 'base64'));
         });
 
-        // Ekstrak data dari fields
-        const data = {
-            nama_sekolah: fields.nama_sekolah ? fields.nama_sekolah[0] : '',
-            nama_ayah: fields.nama_ayah ? fields.nama_ayah[0] : '',
-            nama_ibu: fields.nama_ibu ? fields.nama_ibu[0] : '',
-            domisili: fields.domisili ? fields.domisili[0] : '',
-            kartu_keluarga: files.kartu_keluarga ? files.kartu_keluarga[0].originalFilename : ''
-        };
-
-        // (Opsional) Baca file Kartu Keluarga untuk OCR atau analisis
-        let fileContent = '';
-        if (files.kartu_keluarga) {
-            fileContent = await fs.readFile(files.kartu_keluarga[0].filepath, { encoding: 'base64' });
+        // Validasi data
+        const requiredFields = ['nama_sekolah', 'nama_ayah', 'nama_ibu', 'domisili', 'kartu_keluarga'];
+        for (const field of requiredFields) {
+            if (!data[field]) {
+                return {
+                    statusCode: 400,
+                    body: JSON.stringify({ error: `Field ${field} diperlukan` })
+                };
+            }
         }
 
         // Integrasi dengan Grok API
         const grokApiKey = process.env.XAI_API_KEY;
         if (!grokApiKey) {
-            throw new Error('XAI_API_KEY tidak ditemukan');
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ error: 'XAI_API_KEY tidak ditemukan' })
+            };
         }
 
-        // Contoh panggilan ke Grok API (sesuaikan dengan kebutuhan)
+        // Panggilan ke Grok API
         const grokResponse = await axios.post(
             'https://api.x.ai/v1/chat/completions',
             {
@@ -56,15 +75,14 @@ exports.handler = async function(event, context) {
             }
         );
 
-        // Simpan data ke penyimpanan sementara (contoh: file JSON)
-        // Untuk produksi, gunakan database seperti Firebase
+        // Simpan data sementara untuk ringkasan
         const submissionsFile = '/tmp/submissions.json';
         let submissions = [];
         try {
             const existingData = await fs.readFile(submissionsFile, 'utf8');
             submissions = JSON.parse(existingData);
         } catch (e) {
-            // File belum ada, buat baru
+            // File belum ada
         }
         submissions.push({
             ...data,
@@ -72,9 +90,10 @@ exports.handler = async function(event, context) {
         });
         await fs.writeFile(submissionsFile, JSON.stringify(submissions));
 
+        // Lanjutkan ke FormSubmit (data sudah dikirim oleh client)
         return {
             statusCode: 200,
-            body: JSON.stringify({ message: 'Data received and processed' })
+            body: JSON.stringify({ message: 'Data processed, proceed to FormSubmit' })
         };
     } catch (error) {
         console.error('Error:', error);
