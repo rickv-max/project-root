@@ -56,24 +56,34 @@ exports.handler = async function(event, context) {
         }
 
         // Panggilan ke Grok API
-        const grokResponse = await axios.post(
-            'https://api.x.ai/v1/chat/completions',
-            {
-                model: 'grok-3',
-                messages: [
-                    {
-                        role: 'user',
-                        content: `Analisis data berikut untuk menentukan kelayakan pemilihan 2029 (usia >= 17 tahun pada 2029): ${JSON.stringify(data)}`
+        let grokResult = 'Analisis belum dilakukan';
+        try {
+            const grokResponse = await axios.post(
+                'https://api.x.ai/v1/chat/completions',
+                {
+                    model: 'grok-3',
+                    messages: [
+                        {
+                            role: 'user',
+                            content: `Analisis data berikut untuk menentukan kelayakan pemilihan 2029 (usia >= 17 tahun pada 2029): ${JSON.stringify(data)}`
+                        }
+                    ]
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${grokApiKey}`,
+                        'Content-Type': 'application/json'
                     }
-                ]
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${grokApiKey}`,
-                    'Content-Type': 'application/json'
                 }
-            }
-        );
+            );
+            grokResult = grokResponse.data.choices[0].message.content;
+        } catch (apiError) {
+            console.error('Grok API error:', apiError.message);
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ error: `Grok API gagal: ${apiError.message}` })
+            };
+        }
 
         // Simpan data sementara untuk ringkasan
         const submissionsFile = '/tmp/submissions.json';
@@ -86,20 +96,19 @@ exports.handler = async function(event, context) {
         }
         submissions.push({
             ...data,
-            grok_result: grokResponse.data.choices[0].message.content
+            grok_result: grokResult
         });
         await fs.writeFile(submissionsFile, JSON.stringify(submissions));
 
-        // Lanjutkan ke FormSubmit (data sudah dikirim oleh client)
         return {
             statusCode: 200,
             body: JSON.stringify({ message: 'Data processed, proceed to FormSubmit' })
         };
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error in submit.js:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: error.message })
+            body: JSON.stringify({ error: `Server error: ${error.message}` })
         };
     }
 };
