@@ -21,9 +21,9 @@ document.getElementById('checkVoters').addEventListener('click', async () => {
       });
 
       const data = await res.json();
-      resultDiv.textContent = data.result;
+      resultDiv.textContent = data.output || data.error || 'Tidak ada respons dari Gemini.';
     } catch (err) {
-      resultDiv.textContent = 'Terjadi kesalahan saat memproses gambar.';
+      resultDiv.textContent = '❌ Terjadi kesalahan saat memproses gambar.';
     }
   };
 
