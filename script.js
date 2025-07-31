@@ -22,7 +22,7 @@ document.getElementById('pendaftaranForm').addEventListener('submit', async func
         // Kirim ke Netlify Function untuk preprocessing
         const response = await fetch('/.netlify/functions/submit', {
             method: 'POST',
-            body: formData // Kirim FormData langsung, bukan JSON
+            body: formData
         });
 
         if (response.ok) {
