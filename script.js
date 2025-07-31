@@ -1,49 +1,28 @@
-document.getElementById('pendaftaranForm').addEventListener('submit', async function(event) {
-    event.preventDefault();
+document.getElementById('pendaftaranForm').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  
+  const form = e.target;
+  const formData = new FormData(form);
+  
+  // Simulasi hasil grok (di production ambil dari API Vision/Gemini)
+  const hasilGrok = "✅ Nama sesuai, usia valid, eligible memilih.";
+  formData.append('grok_result', hasilGrok);
 
-    const form = event.target;
-    const formData = new FormData(form);
-    const status = document.getElementById('status');
-    const submitBtn = document.getElementById('submitBtn');
+  const status = document.getElementById('status');
+  status.style.display = 'block';
+  status.textContent = 'Mengirim data...';
 
-    // Validasi manual
-    const requiredFields = ['nama_sekolah', 'nama_ayah', 'nama_ibu', 'domisili', 'kartu_keluarga'];
-    for (const field of requiredFields) {
-        if (!formData.get(field)) {
-            status.style.display = 'block';
-            status.style.color = 'red';
-            status.textContent = 'Semua field wajib diisi!';
-            return;
-        }
-    }
+  try {
+    const response = await fetch('https://script.google.com/macros/s/AKfycbyXOHj6-Lq01FlzHIBpnb_2fdR_ivvUbRiOP3857MPIZQ-hGAY3sgrqNMn526Dai9xy/exec', {
+      method: 'POST',
+      body: formData
+    });
 
-    // Tampilkan status & disable tombol
-    status.style.display = 'block';
-    status.style.color = 'black';
-    status.textContent = 'Memproses data...';
-    submitBtn.disabled = true;
-
-    try {
-        const response = await fetch('/.netlify/functions/submit', {
-            method: 'POST',
-            body: formData
-        });
-
-        const responseText = await response.text();
-
-        if (response.ok) {
-            status.textContent = 'Berhasil! Mengirim ke email...';
-            setTimeout(() => form.submit(), 1000);  // Lanjut kirim ke FormSubmit
-        } else {
-            const err = JSON.parse(responseText);
-            status.style.color = 'red';
-            status.textContent = `Gagal: ${err.error || response.statusText}`;
-        }
-    } catch (error) {
-        console.error('Client error:', error);
-        status.style.color = 'red';
-        status.textContent = `Terjadi kesalahan: ${error.message}`;
-    } finally {
-        submitBtn.disabled = false;
-    }
+    const result = await response.text();
+    status.textContent = '✅ Berhasil dikirim!';
+    form.reset();
+  } catch (error) {
+    console.error('Error:', error);
+    status.textContent = '❌ Gagal mengirim data.';
+  }
 });
