@@ -3,33 +3,106 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pendaftaran Pemilih 2029</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Form Pendaftaran Pemilihan 2029</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+    }
+    input, button {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Form Pendaftaran Pemilih 2029</h2>
-    <form id="pendaftaranForm">
-      <label for="nama_sekolah">Nama Sekolah:</label>
-      <input type="text" id="nama_sekolah" name="nama_sekolah" required>
+  <h2>Form Pendaftaran Pemilihan 2029</h2>
+  <form id="pendaftaranForm">
+    <label>Nama Sekolah:
+      <input type="text" name="nama_sekolah" required />
+    </label>
 
-      <label for="nama_ayah">Nama Ayah:</label>
-      <input type="text" id="nama_ayah" name="nama_ayah" required>
+    <label>Nama Ayah:
+      <input type="text" name="nama_ayah" required />
+    </label>
 
-      <label for="nama_ibu">Nama Ibu:</label>
-      <input type="text" id="nama_ibu" name="nama_ibu" required>
+    <label>Nama Ibu:
+      <input type="text" name="nama_ibu" required />
+    </label>
 
-      <label for="domisili">Domisili:</label>
-      <input type="text" id="domisili" name="domisili" required>
+    <label>Domisili:
+      <input type="text" name="domisili" required />
+    </label>
 
-      <label for="kartu_keluarga">Upload Kartu Keluarga (PDF/JPG/PNG):</label>
-      <input type="file" id="kartu_keluarga" name="kartu_keluarga" accept=".pdf,.jpg,.png" required>
+    <label>Upload Kartu Keluarga (PDF/JPG/PNG):
+      <input type="file" name="kartu_keluarga" id="kartu_keluarga" accept=".pdf,.jpg,.png" required />
+    </label>
 
-      <button type="submit">Kirim</button>
-    </form>
+    <button type="submit">Kirim</button>
+  </form>
 
-    <p id="status"></p>
-  </div>
-  <script src="script.js"></script>
+  <p id="status" style="margin-top: 1rem;"></p>
+
+  <script>
+    const form = document.getElementById('pendaftaranForm');
+    const status = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      status.textContent = "Mengirim data...";
+      
+      const formData = new FormData(form);
+      const file = formData.get('kartu_keluarga');
+
+      try {
+        // 1. Kirim file KK ke backend Grok kamu untuk analisis
+        const base64File = await toBase64(file);
+
+        const response = await fetch("/.netlify/functions/generate-voter", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file: base64File })
+        });
+
+        const result = await response.json();
+
+        // 2. Tambahkan hasil Grok ke formData (manual karena kita pakai JSON)
+        const plainData = {};
+        formData.forEach((val, key) => {
+          plainData[key] = val;
+        });
+        plainData["grok_result"] = result.result || "Tidak ditemukan";
+
+        // 3. Kirim seluruh data ke Google Apps Script (email)
+        await fetch("https://script.google.com/macros/s/AKfycbyur-5qaI7R3KkXGpwuFz5PP_vCbKFdq1RIVuf-TRuOtIMRPZbE0g_Q7pYIEtq6faVMiw/exec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(plainData)
+        });
+
+        status.textContent = "Data berhasil dikirim ke email! ✅";
+        form.reset();
+      } catch (err) {
+        console.error(err);
+        status.textContent = "Gagal mengirim data ❌";
+      }
+    });
+
+    function toBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+  </script>
 </body>
 </html>
