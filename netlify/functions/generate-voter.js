@@ -1,5 +1,3 @@
-// netlify/functions/generate-voter.js
-
 export async function handler(event) {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -12,41 +10,48 @@ export async function handler(event) {
 
   const { base64Image } = JSON.parse(event.body);
 
-  const messages = [
-    {
-      role: "user",
-      content: [
-        {
-          type: "text",
-          text: `Saya mengunggah gambar Kartu Keluarga berikut. Silakan ekstrak semua data anggota keluarga, termasuk: Nama, NIK, Jenis Kelamin, Tanggal Lahir, dan Status Perkawinan.\n\nIdentifikasi siapa saja yang layak memilih berdasarkan:\n- Usia 17 tahun ke atas pada hari ini\n- ATAU sudah menikah\n\nKembalikan hasil dalam format JSON seperti ini:\n{\n  "jumlah_anggota": <angka>,\n  "jumlah_pemilih": <angka>,\n  "data_pemilih": [\n    {\n      "nama": "Nama",\n      "nik": "NIK",\n      "tanggal_lahir": "YYYY-MM-DD",\n      "status_perkawinan": "Kawin/Belum Kawin",\n      "alasan_layak_memilih": "..." \n    }\n  ]\n}`,
-        },
-        {
-          type: "image_url",
-          image_url: {
-            url: `data:image/jpeg;base64,${base64Image.replace(/^data:image\/\w+;base64,/, "")}`,
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`;
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          {
+            text: `Gambar ini adalah Kartu Keluarga. Silakan baca dan ekstrak semua data anggota keluarga: Nama, NIK, Jenis Kelamin, Tempat/Tanggal Lahir, dan Status Perkawinan.\n\nIdentifikasi siapa saja yang memenuhi syarat memilih:\n- Berusia 17 tahun ke atas per hari ini\n- ATAU sudah menikah\n\nKembalikan data dalam JSON seperti berikut:\n{\n "jumlah_anggota": <jumlah>,\n "jumlah_pemilih": <jumlah>,\n "data_pemilih": [\n   {\n     "nama": "Nama",\n     "nik": "NIK",\n     "tanggal_lahir": "YYYY-MM-DD",\n     "status_perkawinan": "Kawin/Belum Kawin",\n     "alasan_layak_memilih": "..." \n   }\n ]\n}`,
           },
-        },
-      ],
-    },
-  ];
-
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${GEMINI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-pro-vision",
-      messages,
-      max_tokens: 2000,
-    }),
-  });
-
-  const data = await response.json();
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ result: data.choices?.[0]?.message?.content || "No result" }),
+          {
+            inline_data: {
+              mime_type: "image/jpeg",
+              data: base64Image.replace(/^data:image\/(png|jpeg);base64,/, ""),
+            },
+          },
+        ],
+      },
+    ],
   };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const result = await response.json();
+
+    const output = result.candidates?.[0]?.content?.parts?.[0]?.text || "Tidak ada respons dari Gemini.";
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ result: output }),
+    };
+
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Gagal memanggil Gemini API", detail: error.message }),
+    };
+  }
 }
