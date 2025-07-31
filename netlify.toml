@@ -1,3 +1,7 @@
 [build]
-  functions = "netlify/functions"
-  node_version = "18"
+  publish = "."
+
+[[plugins]]
+  package = "@netlify/plugin-functions-core"
+  [plugins.inputs]
+    includedFunctions = ["submit"]
