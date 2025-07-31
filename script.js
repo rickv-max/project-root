@@ -19,7 +19,7 @@ document.getElementById('pendaftaranForm').addEventListener('submit', async func
     }
 
     try {
-        // Kirim ke Netlify Function untuk preprocessing
+        // Kirim ke Netlify Function
         const response = await fetch('/.netlify/functions/submit', {
             method: 'POST',
             body: formData
@@ -28,13 +28,15 @@ document.getElementById('pendaftaranForm').addEventListener('submit', async func
         if (response.ok) {
             status.style.display = 'block';
             status.textContent = 'Data berhasil dikirim! Anda akan diarahkan sebentar lagi.';
-            form.submit(); // Lanjutkan ke FormSubmit
+            setTimeout(() => form.submit(), 1000); // Tunda submit untuk feedback
         } else {
-            throw new Error('Gagal menyimpan data');
+            const errorData = await response.json();
+            throw new Error(`Gagal menyimpan data: ${errorData.error || response.statusText}`);
         }
     } catch (error) {
         status.style.display = 'block';
         status.style.color = 'red';
-        status.textContent = 'Terjadi kesalahan: ' + error.message;
+        status.textContent = `Terjadi kesalahan: ${error.message}`;
+        console.error('Error:', error);
     }
 });
