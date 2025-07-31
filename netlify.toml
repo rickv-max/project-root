@@ -1,10 +1,8 @@
 [build]
   publish = "."
+  functions = "functions"
 
-[[plugins]]
-  package = "@netlify/plugin-functions-core"
-  [plugins.inputs]
-    includedFunctions = ["submit"]
-
-[build.environment]
-  NODE_VERSION = "18"
+[[redirects]]
+  from = "/thank-you.html"
+  to = "/index.html"
+  status = 200
