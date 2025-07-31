@@ -30,27 +30,40 @@ export default async (req) => {
     // ================== PROMPT YANG DIPERBAIKI ==================
     // Prompt ini lebih detail, memberikan instruksi format, dan contoh.
     const prompt = `
-      Anda adalah seorang analis data kependudukan Indonesia yang sangat akurat dan teliti.
-      Tugas Anda adalah menganalisis gambar Kartu Keluarga (KK) yang diberikan dan mengidentifikasi anggota keluarga yang memiliki hak pilih.
+      Anda adalah mesin OCR (Optical Character Recognition) dan analis data yang sangat presisi.
+      Tugas Anda adalah membaca gambar Kartu Keluarga (KK) dan mengekstrak informasi setiap anggota keluarga ke dalam format JSON. JANGAN memberikan penjelasan atau teks lain, HANYA output JSON.
 
-      Syarat hak pilih adalah:
-      1. Usia sudah mencapai 17 tahun atau lebih.
-      2. Atau, status perkawinan adalah "KAWIN", tidak peduli berapa usianya.
+      Langkah-langkah Analisis:
+      1.  Periksa setiap baris anggota keluarga pada gambar.
+      2.  Untuk SETIAP anggota keluarga, ekstrak Nama Lengkap, Tanggal Lahir, dan Status Perkawinan.
+      3.  Hitung usia setiap orang secara akurat berdasarkan tanggal lahir dan tahun sekarang (asumsikan tahun ini adalah 2025).
+      4.  Tentukan apakah seseorang memenuhi syarat sebagai pemilih. Syarat: (usia >= 17) ATAU (status perkawinan == "KAWIN").
+      5.  Sajikan SELURUH data dalam satu objek JSON dengan dua kunci: "pemilih_sah" dan "tidak_memenuhi_syarat".
 
-      Instruksi Output:
-      - Analisis setiap anggota keluarga pada gambar.
-      - Untuk setiap anggota yang MEMENUHI SYARAT, buatlah daftar bernomor.
-      - Setiap item dalam daftar harus mencakup NAMA LENGKAP dan KETERANGAN (alasan mengapa dia memenuhi syarat).
-      - Format keterangan harus jelas, contoh: "(Usia 25 tahun)" atau "(Status Kawin)".
-      - Jangan menyertakan anggota keluarga yang tidak memenuhi syarat.
-      - Jika gambar sama sekali tidak bisa dibaca atau sangat buram, jawab HANYA dengan kalimat: "Gambar tidak terbaca dengan jelas. Mohon unggah gambar yang lebih baik."
-      - Jangan menambahkan informasi atau komentar lain di luar daftar tersebut.
+      FORMAT JSON OUTPUT WAJIB SEPERTI INI:
+      {
+        "pemilih_sah": [
+          {
+            "nama": "NAMA_LENGKAP_PEMILIH_1",
+            "alasan": "Usia XX tahun"
+          },
+          {
+            "nama": "NAMA_LENGKAP_PEMILIH_2",
+            "alasan": "Status Kawin"
+          }
+        ],
+        "tidak_memenuhi_syarat": [
+          {
+            "nama": "NAMA_ANAK_1",
+            "alasan": "Usia YY tahun"
+          }
+        ]
+      }
 
-      Contoh Output yang Diinginkan:
-      Berikut adalah daftar anggota keluarga yang memiliki hak pilih:
-      1. BUDI SANTOSO (Usia 45 tahun)
-      2. SITI AMINAH (Usia 42 tahun)
-      3. RAHMAT HIDAYAT (Status Kawin)
+      Jika gambar sama sekali tidak bisa dibaca, kembalikan JSON ini:
+      {
+        "error": "Gambar tidak terbaca dengan jelas. Mohon unggah gambar yang lebih baik."
+      }
     `;
     // ==========================================================
 
