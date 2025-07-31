@@ -1,6 +1,5 @@
 // Handler untuk Netlify Functions API v2
 export default async (req) => {
-  // Hanya izinkan metode POST
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ result: 'Metode tidak diizinkan.' }), {
       status: 405,
@@ -11,11 +10,9 @@ export default async (req) => {
   console.log("Fungsi 'generate-voter' dipanggil.");
 
   try {
-    // 1. FIX: Langsung parse body request sebagai JSON, tanpa JSON.parse() manual
     const { base64Image } = await req.json();
 
     if (!base64Image) {
-      console.error("Tidak ada gambar yang diterima dalam body request.");
       return new Response(JSON.stringify({ result: 'Tidak ada data gambar yang dikirim.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
@@ -24,21 +21,38 @@ export default async (req) => {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error("GEMINI_API_KEY tidak ditemukan di environment variables.");
       return new Response(JSON.stringify({ result: 'Konfigurasi server tidak lengkap (API Key tidak ada).' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
+    // ================== PROMPT YANG DIPERBAIKI ==================
+    // Prompt ini lebih detail, memberikan instruksi format, dan contoh.
     const prompt = `
-      Anda adalah seorang ahli pembaca data KTP dan Kartu Keluarga (KK) dari Indonesia.
-      Tugas Anda adalah membaca gambar Kartu Keluarga yang diberikan.
-      Dari gambar tersebut, identifikasi dan sebutkan HANYA nama-nama anggota keluarga yang memenuhi syarat sebagai pemilih dalam Pemilu.
-      Syarat pemilih adalah: berusia 17 tahun atau lebih, ATAU memiliki status "KAWIN" pada kolom status perkawinan, meskipun usianya di bawah 17 tahun.
-      Sajikan hasilnya dalam format daftar bernomor.
-      Jika gambar tidak jelas atau tidak bisa dibaca sama sekali, jawab dengan: "Gambar tidak terbaca dengan jelas. Mohon unggah gambar yang lebih baik."
+      Anda adalah seorang analis data kependudukan Indonesia yang sangat akurat dan teliti.
+      Tugas Anda adalah menganalisis gambar Kartu Keluarga (KK) yang diberikan dan mengidentifikasi anggota keluarga yang memiliki hak pilih.
+
+      Syarat hak pilih adalah:
+      1. Usia sudah mencapai 17 tahun atau lebih.
+      2. Atau, status perkawinan adalah "KAWIN", tidak peduli berapa usianya.
+
+      Instruksi Output:
+      - Analisis setiap anggota keluarga pada gambar.
+      - Untuk setiap anggota yang MEMENUHI SYARAT, buatlah daftar bernomor.
+      - Setiap item dalam daftar harus mencakup NAMA LENGKAP dan KETERANGAN (alasan mengapa dia memenuhi syarat).
+      - Format keterangan harus jelas, contoh: "(Usia 25 tahun)" atau "(Status Kawin)".
+      - Jangan menyertakan anggota keluarga yang tidak memenuhi syarat.
+      - Jika gambar sama sekali tidak bisa dibaca atau sangat buram, jawab HANYA dengan kalimat: "Gambar tidak terbaca dengan jelas. Mohon unggah gambar yang lebih baik."
+      - Jangan menambahkan informasi atau komentar lain di luar daftar tersebut.
+
+      Contoh Output yang Diinginkan:
+      Berikut adalah daftar anggota keluarga yang memiliki hak pilih:
+      1. BUDI SANTOSO (Usia 45 tahun)
+      2. SITI AMINAH (Usia 42 tahun)
+      3. RAHMAT HIDAYAT (Status Kawin)
     `;
+    // ==========================================================
 
     const body = {
       contents: [
@@ -65,10 +79,8 @@ export default async (req) => {
     });
     
     const result = await response.json();
-    console.log("Respons dari Gemini API:", JSON.stringify(result));
 
     if (result.error) {
-      console.error("Error dari Gemini API:", result.error.message);
       return new Response(JSON.stringify({ result: `Error dari API: ${result.error.message}` }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
@@ -77,14 +89,12 @@ export default async (req) => {
     
     if (result.candidates && result.candidates.length > 0 && result.candidates[0].content) {
       const textResult = result.candidates[0].content.parts[0].text;
-      // 2. FIX: Kembalikan respons yang benar
       return new Response(JSON.stringify({ result: textResult }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     } else {
-      console.warn("Gemini tidak mengembalikan output yang valid.");
-      return new Response(JSON.stringify({ result: '⚠️ Gemini tidak mengembalikan output. Kemungkinan gambar tidak sesuai atau ada masalah dengan API.' }), {
+      return new Response(JSON.stringify({ result: '⚠️ Gemini tidak mengembalikan output. Coba lagi dengan gambar yang lebih jelas.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -92,7 +102,6 @@ export default async (req) => {
 
   } catch (error) {
     console.error("Terjadi error di dalam server function:", error);
-    // 2. FIX: Kembalikan respons yang benar di blok catch
     return new Response(JSON.stringify({ result: '❌ Terjadi kesalahan internal pada server: ' + error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
