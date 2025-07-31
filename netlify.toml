@@ -7,9 +7,4 @@
     includedFunctions = ["submit"]
 
 [build.environment]
-  # Node.js 18 atau lebih tinggi
   NODE_VERSION = "18"
-
-# Build script untuk function
-[build.script]
-  command = "npm install esbuild && npx esbuild functions/submit.js --bundle --platform=node --outfile=functions/submit.bundle.js"
