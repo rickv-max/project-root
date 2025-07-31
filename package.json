@@ -1,0 +1,13 @@
+{
+  "name": "cek-pemilih-kk",
+  "version": "1.0.0",
+  "description": "Website untuk mengecek siapa yang bisa memilih dari gambar Kartu Keluarga",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node netlify/functions/generate-voter.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.4.1"
+  }
+}
