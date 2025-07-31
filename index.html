@@ -1,39 +1,36 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Form Pendaftaran Pemilihan 2029</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Form Pendaftaran Pemilihan 2029</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <h2>Form Pendaftaran Pemilihan 2029</h2>
-        <form action="https://formsubmit.co/rickpipor@gmail.com" method="POST" enctype="multipart/form-data" id="pendaftaranForm">
-    <!-- input fields sama seperti sebelumnya -->
-    <label for="nama_sekolah">Nama Sekolah:</label>
-    <input type="text" id="nama_sekolah" name="nama_sekolah" required>
+  <div class="container">
+    <h2>Form Pendaftaran Pemilihan 2029</h2>
+    <form id="pendaftaranForm">
+      <label for="nama_sekolah">Nama Sekolah:</label>
+      <input type="text" id="nama_sekolah" name="nama_sekolah" required>
 
-    <label for="nama_ayah">Nama Ayah:</label>
-    <input type="text" id="nama_ayah" name="nama_ayah" required>
+      <label for="nama_ayah">Nama Ayah:</label>
+      <input type="text" id="nama_ayah" name="nama_ayah" required>
 
-    <label for="nama_ibu">Nama Ibu:</label>
-    <input type="text" id="nama_ibu" name="nama_ibu" required>
+      <label for="nama_ibu">Nama Ibu:</label>
+      <input type="text" id="nama_ibu" name="nama_ibu" required>
 
-    <label for="domisili">Domisili:</label>
-    <input type="text" id="domisili" name="domisili" required>
+      <label for="domisili">Domisili:</label>
+      <input type="text" id="domisili" name="domisili" required>
 
-    <label for="kartu_keluarga">Upload Kartu Keluarga (PDF/JPG/PNG):</label>
-    <input type="file" id="kartu_keluarga" name="kartu_keluarga" accept=".pdf,.jpg,.png" required>
+      <label for="kartu_keluarga">Upload Kartu Keluarga (PDF/JPG/PNG):</label>
+      <input type="file" id="kartu_keluarga" name="kartu_keluarga" accept=".pdf,.jpg,.png" required>
 
-    <input type="hidden" name="_subject" value="Pendaftaran Pemilihan 2029">
-    <input type="hidden" name="_next" value="/thank-you.html">
-    <input type="hidden" name="_captcha" value="false">
+      <button type="submit">Kirim</button>
+    </form>
 
-    <button type="submit" id="submitBtn">Kirim</button>
-</form>
-<p id="status" style="display: none;"></p>
-    </div>
-    <script src="script.js"></script>
+    <p id="status" style="display: none;"></p>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
