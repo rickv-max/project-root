@@ -39,55 +39,53 @@ if (!apiKey) {
 const prompt = `
 ```
 
-Anda adalah sistem OCR (Optical Character Recognition) yang sangat akurat untuk membaca Kartu Keluarga (KK) Indonesia.
+Anda adalah sistem OCR yang membaca Kartu Keluarga Indonesia.
 
-TUGAS ANDA:
+TUGAS: Ekstrak data SEMUA anggota keluarga dari gambar KK dan kembalikan dalam format JSON.
 
-1. Baca gambar Kartu Keluarga dengan teliti
-1. Ekstrak data SEMUA anggota keluarga yang tercantum
-1. Untuk setiap anggota keluarga, ambil: Nama Lengkap, Tanggal Lahir, Status Perkawinan
-1. Hitung usia setiap orang pada tahun ${TAHUN_TARGET}
-1. Kembalikan data dalam format JSON yang tepat
+LANGKAH:
 
-INSTRUKSI DETAIL:
+1. Baca tabel anggota keluarga di KK
+1. Untuk setiap baris/orang, ambil: Nama, Tanggal Lahir, Status Perkawinan
+1. Hitung usia di tahun ${TAHUN_TARGET} menggunakan rumus: ${TAHUN_TARGET} - tahun_lahir
+1. Kembalikan sebagai JSON array
 
-- Baca SEMUA baris anggota keluarga, jangan lewatkan siapa pun
-- Untuk tanggal lahir, ekstrak tahun lahir dan hitung: ${TAHUN_TARGET} - tahun_lahir
-- Status perkawinan biasanya: “BELUM KAWIN”, “KAWIN”, “CERAI HIDUP”, “CERAI MATI”
-- Jika ada data yang tidak jelas, tulis “TIDAK TERBACA”
-- Pastikan nama ditulis lengkap sesuai yang tertera di KK
+CONTOH INPUT DARI KK:
 
-FORMAT OUTPUT JSON (HANYA JSON, TANPA TEKS TAMBAHAN):
+- Baris 1: JOHN DOE, 15-08-1980, KAWIN
+- Baris 2: JANE DOE, 22-03-1985, KAWIN
+- Baris 3: ALICE DOE, 10-12-2010, BELUM KAWIN
+
+EXPECTED OUTPUT untuk tahun ${TAHUN_TARGET}:
 {
 “anggota_keluarga”: [
 {
-“nama”: “NAMA LENGKAP KEPALA KELUARGA”,
-“usia_pada_tahun_target”: 45,
+“nama”: “JOHN DOE”,
+“usia_pada_tahun_target”: ${TAHUN_TARGET - 1980},
 “status_perkawinan”: “KAWIN”
 },
 {
-“nama”: “NAMA LENGKAP ISTRI/SUAMI”,
-“usia_pada_tahun_target”: 42,
+“nama”: “JANE DOE”,
+“usia_pada_tahun_target”: ${TAHUN_TARGET - 1985},
 “status_perkawinan”: “KAWIN”
 },
 {
-“nama”: “NAMA LENGKAP ANAK 1”,
-“usia_pada_tahun_target”: 18,
-“status_perkawinan”: “BELUM KAWIN”
-},
-{
-“nama”: “NAMA LENGKAP ANAK 2”,
-“usia_pada_tahun_target”: 15,
+“nama”: “ALICE DOE”,
+“usia_pada_tahun_target”: ${TAHUN_TARGET - 2010},
 “status_perkawinan”: “BELUM KAWIN”
 }
 ]
 }
 
-JIKA GAMBAR TIDAK DAPAT DIBACA:
-{ “error”: “Gambar tidak dapat dibaca. Pastikan gambar KK jelas dan tidak buram.” }
+ATURAN PENTING:
 
-PENTING: Kembalikan HANYA JSON, tanpa penjelasan atau teks lainnya.
-`.trim();
+- WAJIB gunakan format JSON persis seperti contoh
+- Jika tidak ada anggota keluarga: {“anggota_keluarga”: []}
+- Jika gambar tidak terbaca: {“error”: “Gambar tidak terbaca”}
+- Status perkawinan: “KAWIN”, “BELUM KAWIN”, “CERAI HIDUP”, “CERAI MATI”
+- TIDAK BOLEH ada teks lain selain JSON
+
+MULAI ANALISIS GAMBAR SEKARANG:`.trim();
 
 ```
 // Persiapan data untuk Gemini API
@@ -109,8 +107,10 @@ const body = {
   }],
   generationConfig: {
     responseMimeType: "application/json",
-    temperature: 0.1,
-    maxOutputTokens: 2048
+    temperature: 0,
+    maxOutputTokens: 4096,
+    topP: 0.1,
+    topK: 1
   }
 };
 
@@ -144,9 +144,33 @@ if (result.candidates && result.candidates.length > 0 && result.candidates[0].co
   
   // Validasi apakah response adalah JSON yang valid
   try {
-    const parsedResult = JSON.parse(textResult);
+    let parsedResult;
     
-    // Validasi struktur data
+    // Coba parse JSON langsung
+    try {
+      parsedResult = JSON.parse(textResult);
+    } catch (firstParseError) {
+      console.log('First JSON parse failed, trying to clean response...', firstParseError);
+      
+      // Coba clean response (hapus text sebelum/sesudah JSON)
+      let cleanedText = textResult.trim();
+      
+      // Cari JSON block
+      const jsonStart = cleanedText.indexOf('{');
+      const jsonEnd = cleanedText.lastIndexOf('}') + 1;
+      
+      if (jsonStart !== -1 && jsonEnd > jsonStart) {
+        cleanedText = cleanedText.substring(jsonStart, jsonEnd);
+        console.log('Cleaned text:', cleanedText);
+        parsedResult = JSON.parse(cleanedText);
+      } else {
+        throw new Error('No valid JSON found in response');
+      }
+    }
+    
+    console.log('Parsed result:', JSON.stringify(parsedResult, null, 2));
+    
+    // Jika ada error dari Gemini
     if (parsedResult.error) {
       return new Response(JSON.stringify(parsedResult), {
         status: 400,
@@ -154,25 +178,35 @@ if (result.candidates && result.candidates.length > 0 && result.candidates[0].co
       });
     }
     
-    if (!parsedResult.anggota_keluarga || !Array.isArray(parsedResult.anggota_keluarga)) {
-      return new Response(JSON.stringify({ 
-        error: 'Format data tidak sesuai. Tidak ditemukan array anggota_keluarga.' 
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+    // Pastikan ada field anggota_keluarga
+    if (!parsedResult.anggota_keluarga) {
+      console.log('Missing anggota_keluarga field, creating empty array');
+      parsedResult.anggota_keluarga = [];
+    }
+    
+    // Pastikan anggota_keluarga adalah array
+    if (!Array.isArray(parsedResult.anggota_keluarga)) {
+      console.log('anggota_keluarga is not array, converting...');
+      parsedResult.anggota_keluarga = [];
     }
 
-    // Validasi setiap anggota keluarga
+    // Validasi dan normalisasi setiap anggota keluarga
     const validatedData = {
-      anggota_keluarga: parsedResult.anggota_keluarga.map(anggota => ({
-        nama: anggota.nama || 'NAMA TIDAK TERBACA',
-        usia_pada_tahun_target: parseInt(anggota.usia_pada_tahun_target) || 0,
-        status_perkawinan: anggota.status_perkawinan || 'TIDAK TERBACA'
-      }))
+      anggota_keluarga: parsedResult.anggota_keluarga.map((anggota, index) => {
+        console.log(`Processing member ${index + 1}:`, anggota);
+        
+        const validatedMember = {
+          nama: (anggota.nama || `ANGGOTA ${index + 1}`).toString().trim(),
+          usia_pada_tahun_target: parseInt(anggota.usia_pada_tahun_target) || 0,
+          status_perkawinan: (anggota.status_perkawinan || 'TIDAK TERBACA').toString().trim().toUpperCase()
+        };
+        
+        console.log(`Validated member ${index + 1}:`, validatedMember);
+        return validatedMember;
+      })
     };
 
-    console.log('Data yang sudah divalidasi:', JSON.stringify(validatedData, null, 2));
+    console.log('Final validated data:', JSON.stringify(validatedData, null, 2));
     
     return new Response(JSON.stringify(validatedData), {
       status: 200,
@@ -180,13 +214,18 @@ if (result.candidates && result.candidates.length > 0 && result.candidates[0].co
     });
     
   } catch (jsonError) {
-    console.error('Error parsing JSON dari Gemini:', jsonError);
-    console.error('Raw text yang gagal diparsing:', textResult);
+    console.error('All JSON parsing attempts failed:', jsonError);
+    console.error('Original response text:', textResult);
     
-    return new Response(JSON.stringify({ 
-      error: 'Response dari AI tidak dalam format JSON yang valid.' 
-    }), {
-      status: 500,
+    // Fallback: return empty data structure
+    const fallbackData = {
+      anggota_keluarga: [],
+      parsing_error: true,
+      original_response: textResult.substring(0, 500) // First 500 chars for debugging
+    };
+    
+    return new Response(JSON.stringify(fallbackData), {
+      status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
