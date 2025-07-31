@@ -1,70 +1,81 @@
 const Busboy = require('busboy');
 const axios = require('axios');
-const fs = require('fs').promises;
 
 exports.handler = async function(event, context) {
+    console.log('Processing submit function, headers:', event.headers);
+
     if (!event.headers['content-type'] || !event.headers['content-type'].includes('multipart/form-data')) {
+        console.error('Invalid Content-Type:', event.headers['content-type']);
         return {
             statusCode: 400,
-            body: JSON.stringify({ error: 'Content-Type harus multipart/form-data' })
+            body: JSON.stringify({ error: 'Content-Type must be multipart/form-data' })
         };
     }
 
     try {
-        // Parse multipart/form-data
         const data = {};
         let fileName = '';
 
         await new Promise((resolve, reject) => {
             const busboy = Busboy({ headers: event.headers });
+
             busboy.on('field', (name, value) => {
+                console.log(`Received field: ${name} = ${value}`);
                 data[name] = value;
             });
+
             busboy.on('file', (name, file, info) => {
                 fileName = info.filename;
-                const chunks = [];
-                file.on('data', chunk => chunks.push(chunk));
-                file.on('end', () => {
-                    data[name] = fileName;
-                });
+                console.log(`Received file: ${name} = ${fileName}`);
+                file.resume(); // we ignore file contents
+                data[name] = fileName;
             });
-            busboy.on('finish', () => resolve());
-            busboy.on('error', err => reject(err));
-            busboy.write(Buffer.from(event.body, 'base64'));
+
+            busboy.on('finish', () => {
+                console.log('Parsing form-data finished');
+                resolve();
+            });
+
+            busboy.on('error', err => {
+                console.error('Busboy error:', err);
+                reject(err);
+            });
+
+            busboy.end(Buffer.from(event.body, 'base64'));
         });
 
-        // Validasi data
+        // Validasi field
         const requiredFields = ['nama_sekolah', 'nama_ayah', 'nama_ibu', 'domisili', 'kartu_keluarga'];
         for (const field of requiredFields) {
             if (!data[field]) {
                 return {
                     statusCode: 400,
-                    body: JSON.stringify({ error: `Field ${field} diperlukan` })
+                    body: JSON.stringify({ error: `Field ${field} is required` })
                 };
             }
         }
 
-        // Integrasi dengan Grok API
+        // Ambil API Key
         const grokApiKey = process.env.XAI_API_KEY;
         if (!grokApiKey) {
             return {
                 statusCode: 500,
-                body: JSON.stringify({ error: 'XAI_API_KEY tidak ditemukan' })
+                body: JSON.stringify({ error: 'XAI_API_KEY not found in environment' })
             };
         }
 
-        let grokResult = 'Analisis belum dilakukan';
+        // Analisis data dengan Grok AI
+        let grokResult = 'No result';
         try {
+            console.log('Calling Grok API...');
             const grokResponse = await axios.post(
                 'https://api.x.ai/v1/chat/completions',
                 {
                     model: 'grok-3',
-                    messages: [
-                        {
-                            role: 'user',
-                            content: `Analisis data berikut untuk menentukan kelayakan pemilihan 2029 (usia >= 17 tahun pada 2029): ${JSON.stringify(data)}`
-                        }
-                    ]
+                    messages: [{
+                        role: 'user',
+                        content: `Cek kelayakan memilih 2029 dari data berikut: ${JSON.stringify(data)}`
+                    }]
                 },
                 {
                     headers: {
@@ -73,32 +84,21 @@ exports.handler = async function(event, context) {
                     }
                 }
             );
-            grokResult = grokResponse.data.choices[0].message.content;
+            grokResult = grokResponse.data.choices?.[0]?.message?.content || 'Tidak ada respons';
+            console.log('Grok result:', grokResult);
         } catch (apiError) {
-            return {
-                statusCode: 500,
-                body: JSON.stringify({ error: `Grok API gagal: ${apiError.message}` })
-            };
+            console.error('Grok API error:', apiError.message || apiError);
         }
 
-        // Simpan data sementara untuk ringkasan
-        const submissionsFile = '/tmp/submissions.json';
-        let submissions = [];
-        try {
-            const existingData = await fs.readFile(submissionsFile, 'utf8');
-            submissions = JSON.parse(existingData);
-        } catch (e) {}
-        submissions.push({
-            ...data,
-            grok_result: grokResult
-        });
-        await fs.writeFile(submissionsFile, JSON.stringify(submissions));
+        // Tidak dikirim ke Google Sheets, cukup log
+        console.log('Form processed. Grok Analysis:', grokResult);
 
         return {
             statusCode: 200,
-            body: JSON.stringify({ message: 'Data processed, proceed to FormSubmit' })
+            body: JSON.stringify({ message: 'Success, analysis complete', hasil_grok: grokResult })
         };
     } catch (error) {
+        console.error('Function error:', error.message);
         return {
             statusCode: 500,
             body: JSON.stringify({ error: `Server error: ${error.message}` })
