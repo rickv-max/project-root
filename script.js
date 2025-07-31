@@ -2,13 +2,22 @@ document.getElementById('checkVoters').addEventListener('click', async () => {
   const fileInput = document.getElementById('kkFile');
   const resultDiv = document.getElementById('result');
   const file = fileInput.files[0];
+  
+  // Ambil nilai tahun dari input baru
+  const targetYear = document.getElementById('targetYear').value;
 
   if (!file) {
     resultDiv.innerHTML = '<p style="color: orange;">⚠️ Mohon unggah gambar terlebih dahulu.</p>';
     return;
   }
 
-  resultDiv.innerHTML = '<p>⏳ Menganalisis gambar, mohon tunggu...</p>';
+  // Validasi sederhana untuk tahun
+  if (!targetYear || targetYear < 2000) {
+    resultDiv.innerHTML = '<p style="color: red;">⚠️ Mohon masukkan tahun yang valid.</p>';
+    return;
+  }
+
+  resultDiv.innerHTML = `<p>⏳ Menganalisis data untuk tahun <strong>${targetYear}</strong>, mohon tunggu...</p>`;
 
   const reader = new FileReader();
   reader.onloadend = async () => {
@@ -18,20 +27,18 @@ document.getElementById('checkVoters').addEventListener('click', async () => {
       const res = await fetch('/.netlify/functions/generate-voter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base64Image: base64Image }),
+        // Kirim base64Image DAN targetYear
+        body: JSON.stringify({ base64Image, targetYear }),
       });
 
-      // data sekarang adalah objek JSON yang sudah di-parse
       const data = await res.json();
       
-      // Jika ada properti error di dalam JSON, tampilkan itu
       if (data.error) {
         resultDiv.innerHTML = `<p style="color: red;">❌ ${data.error}</p>`;
         return;
       }
       
-      // Panggil fungsi untuk menampilkan hasil
-      displayResults(data);
+      displayResults(data, targetYear);
 
     } catch (err) {
       console.error('Error di sisi client:', err);
@@ -42,33 +49,32 @@ document.getElementById('checkVoters').addEventListener('click', async () => {
   reader.readAsDataURL(file);
 });
 
-// Fungsi baru untuk memformat dan menampilkan data JSON
-function displayResults(data) {
+// Fungsi displayResults sedikit diubah untuk menampilkan tahun target
+function displayResults(data, year) {
   const resultDiv = document.getElementById('result');
   let html = '';
 
-  // Tampilkan daftar pemilih yang sah
+  html += `<h3>Hasil Analisis untuk Tahun ${year}</h3>`;
+
   if (data.pemilih_sah && data.pemilih_sah.length > 0) {
-    html += '<h3>✅ Pemilih yang Memenuhi Syarat</h3>';
+    html += '<h4>✅ Pemilih yang Memenuhi Syarat</h4>';
     html += '<ul>';
     data.pemilih_sah.forEach(pemilih => {
-      html += `<li><strong>${pemilih.nama}</strong> (${pemilih.alasan})</li>`;
+      html += `<li><strong>${pemilih.nama}</strong><br><small>(${pemilih.alasan})</small></li>`;
     });
     html += '</ul>';
   } else {
-    html += '<h3>✅ Tidak ditemukan pemilih yang memenuhi syarat.</h3>';
+    html += '<h4>✅ Tidak ditemukan pemilih yang memenuhi syarat.</h4>';
   }
 
-  // Tampilkan daftar yang tidak memenuhi syarat (opsional, bagus untuk verifikasi)
   if (data.tidak_memenuhi_syarat && data.tidak_memenuhi_syarat.length > 0) {
-    html += '<h3 style="margin-top: 1.5rem;">🚫 Tidak Memenuhi Syarat</h3>';
+    html += '<h4 style="margin-top: 1.5rem;">🚫 Tidak Memenuhi Syarat</h4>';
     html += '<ul>';
     data.tidak_memenuhi_syarat.forEach(orang => {
-      html += `<li><strong>${orang.nama}</strong> (${orang.alasan})</li>`;
+      html += `<li><strong>${orang.nama}</strong><br><small>(${orang.alasan})</small></li>`;
     });
     html += '</ul>';
   }
 
-  // Ganti konten div dengan HTML yang sudah kita buat
   resultDiv.innerHTML = html;
 }
