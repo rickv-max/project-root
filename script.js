@@ -19,10 +19,10 @@ document.getElementById('pendaftaranForm').addEventListener('submit', async func
     }
 
     try {
-        // (Opsional) Kirim ke Netlify Function untuk pengelompokan data
+        // Kirim ke Netlify Function untuk preprocessing
         const response = await fetch('/.netlify/functions/submit', {
             method: 'POST',
-            body: formData
+            body: formData // Kirim FormData langsung, bukan JSON
         });
 
         if (response.ok) {
