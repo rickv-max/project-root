@@ -1,22 +1,27 @@
 document.getElementById('pendaftaranForm').addEventListener('submit', async function(event) {
     event.preventDefault();
+
     const form = event.target;
     const formData = new FormData(form);
     const status = document.getElementById('status');
+    const submitBtn = document.getElementById('submitBtn');
 
-    // Validasi sederhana
-    const namaSekolah = formData.get('nama_sekolah');
-    const namaAyah = formData.get('nama_ayah');
-    const namaIbu = formData.get('nama_ibu');
-    const domisili = formData.get('domisili');
-    const kartuKeluarga = formData.get('kartu_keluarga');
-
-    if (!namaSekolah || !namaAyah || !namaIbu || !domisili || !kartuKeluarga) {
-        status.style.display = 'block';
-        status.style.color = 'red';
-        status.textContent = 'Semua field harus diisi!';
-        return;
+    // Validasi manual
+    const requiredFields = ['nama_sekolah', 'nama_ayah', 'nama_ibu', 'domisili', 'kartu_keluarga'];
+    for (const field of requiredFields) {
+        if (!formData.get(field)) {
+            status.style.display = 'block';
+            status.style.color = 'red';
+            status.textContent = 'Semua field wajib diisi!';
+            return;
+        }
     }
+
+    // Tampilkan status & disable tombol
+    status.style.display = 'block';
+    status.style.color = 'black';
+    status.textContent = 'Memproses data...';
+    submitBtn.disabled = true;
 
     try {
         const response = await fetch('/.netlify/functions/submit', {
@@ -24,20 +29,21 @@ document.getElementById('pendaftaranForm').addEventListener('submit', async func
             body: formData
         });
 
+        const responseText = await response.text();
+
         if (response.ok) {
-            status.style.display = 'block';
-            status.textContent = 'Data berhasil dikirim! Anda akan diarahkan sebentar lagi.';
-            setTimeout(() => form.submit(), 1000);
+            status.textContent = 'Berhasil! Mengirim ke email...';
+            setTimeout(() => form.submit(), 1000);  // Lanjut kirim ke FormSubmit
         } else {
-            const errorData = await response.json();
-            status.style.display = 'block';
+            const err = JSON.parse(responseText);
             status.style.color = 'red';
-            status.textContent = `Error: ${errorData.error || response.statusText} (Status: ${response.status})`;
-            throw new Error(errorData.error || response.statusText);
+            status.textContent = `Gagal: ${err.error || response.statusText}`;
         }
     } catch (error) {
-        status.style.display = 'block';
+        console.error('Client error:', error);
         status.style.color = 'red';
         status.textContent = `Terjadi kesalahan: ${error.message}`;
+    } finally {
+        submitBtn.disabled = false;
     }
 });
