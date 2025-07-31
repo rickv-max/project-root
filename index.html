@@ -417,26 +417,67 @@
     function processAndDisplayResults(data, year) {
         const resultDiv = document.getElementById('result');
         
+        console.log('Processing data:', data); // Debug log
+        
         const pemilih_sah = [];
         const tidak_memenuhi_syarat = [];
 
-        // Validasi data
-        if (!data || !data.anggota_keluarga || !Array.isArray(data.anggota_keluarga)) {
-            resultDiv.innerHTML = '<div class="error">❌ Format data dari server tidak sesuai. Tidak ditemukan daftar anggota keluarga.</div>';
+        // Validasi data dengan lebih detail
+        if (!data) {
+            resultDiv.innerHTML = '<div class="error">❌ Tidak ada data yang diterima dari server.</div>';
+            return;
+        }
+
+        // Cek jika ada parsing error
+        if (data.parsing_error) {
+            resultDiv.innerHTML = `
+                <div class="error">
+                    ⚠️ Gambar berhasil diproses tetapi data tidak dapat dibaca dengan sempurna.<br>
+                    <details style="margin-top: 10px;">
+                        <summary>Detail teknis (untuk debugging)</summary>
+                        <pre style="background: #f5f5f5; padding: 10px; margin-top: 5px; font-size: 12px; white-space: pre-wrap;">${data.original_response || 'No response data'}</pre>
+                    </details>
+                    <br><strong>Saran:</strong> Pastikan gambar KK jelas dan tidak buram, lalu coba lagi.
+                </div>
+            `;
+            return;
+        }
+
+        if (!data.anggota_keluarga) {
+            resultDiv.innerHTML = '<div class="error">❌ Format data dari server tidak sesuai. Field anggota_keluarga tidak ditemukan.</div>';
+            return;
+        }
+
+        if (!Array.isArray(data.anggota_keluarga)) {
+            resultDiv.innerHTML = '<div class="error">❌ Format data dari server tidak sesuai. anggota_keluarga bukan berupa array.</div>';
             return;
         }
 
         if (data.anggota_keluarga.length === 0) {
-            resultDiv.innerHTML = '<div class="error">⚠️ Tidak ditemukan data anggota keluarga dalam gambar KK. Pastikan gambar jelas dan terbaca.</div>';
+            resultDiv.innerHTML = `
+                <div class="error">
+                    ⚠️ Tidak ditemukan data anggota keluarga dalam gambar KK.<br><br>
+                    <strong>Kemungkinan penyebab:</strong><br>
+                    • Gambar terlalu buram atau tidak jelas<br>
+                    • Resolusi gambar terlalu rendah<br>
+                    • Gambar bukan merupakan Kartu Keluarga<br>
+                    • Tabel anggota keluarga tidak terbaca<br><br>
+                    <strong>Solusi:</strong> Upload gambar KK yang lebih jelas dan coba lagi.
+                </div>
+            `;
             return;
         }
 
+        console.log(`Processing ${data.anggota_keluarga.length} family members`); // Debug log
+
         // Process setiap anggota keluarga
-        data.anggota_keluarga.forEach(orang => {
+        data.anggota_keluarga.forEach((orang, index) => {
+            console.log(`Processing member ${index + 1}:`, orang); // Debug log
+            
             if (!orang.nama || orang.usia_pada_tahun_target === undefined || !orang.status_perkawinan) {
                 tidak_memenuhi_syarat.push({
-                    nama: orang.nama || 'Nama tidak terbaca',
-                    alasan: 'Data tidak lengkap'
+                    nama: orang.nama || `Anggota ${index + 1}`,
+                    alasan: 'Data tidak lengkap atau tidak terbaca'
                 });
                 return;
             }
@@ -447,7 +488,7 @@
             if (isNaN(usia) || usia < 0 || usia > 150) {
                 tidak_memenuhi_syarat.push({
                     nama: orang.nama,
-                    alasan: 'Usia tidak valid'
+                    alasan: `Usia tidak valid (${orang.usia_pada_tahun_target})`
                 });
                 return;
             }
@@ -474,6 +515,8 @@
                 });
             }
         });
+
+        console.log(`Results: ${pemilih_sah.length} eligible, ${tidak_memenuhi_syarat.length} not eligible`); // Debug log
 
         // Display results
         displayResults(pemilih_sah, tidak_memenuhi_syarat, year);
