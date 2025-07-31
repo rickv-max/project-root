@@ -52,7 +52,7 @@ export default async (req) => {
       generationConfig: { responseMimeType: "application/json" }
     };
 
-    const model = 'gemini-1.5-pro-latest';
+    const model = 'gemini-1.5-flash-latest';
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     
     const response = await fetch(geminiUrl, {
