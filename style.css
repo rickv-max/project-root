@@ -1,0 +1,28 @@
+body {
+  font-family: sans-serif;
+  background: #f0f4f8;
+  padding: 2rem;
+}
+
+.container {
+  max-width: 600px;
+  margin: auto;
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+button {
+  margin-top: 1rem;
+  padding: 10px 15px;
+  font-size: 16px;
+}
+
+pre {
+  margin-top: 2rem;
+  background: #eee;
+  padding: 1rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
